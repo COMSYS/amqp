@@ -9,9 +9,20 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 	"time"
 )
+
+type WrongVersionError struct {
+	Major    byte
+	Minor    byte
+	Revision byte
+}
+
+func (e WrongVersionError) Error() string {
+	return fmt.Sprintf("incompatible version %d.%d.%d", e.Major, e.Minor, e.Revision)
+}
 
 /*
 Reads a frame from an input stream and returns an interface that can be cast into
@@ -48,6 +59,16 @@ func (r *reader) ReadFrame() (frame frame, err error) {
 
 	if _, err = io.ReadFull(r.r, scratch[:7]); err != nil {
 		return
+	}
+
+	if string(scratch[:4]) == "AMQP" {
+		major := scratch[5]
+		minor := scratch[6]
+		var revisionBuf [1]byte
+		if _, err = io.ReadFull(r.r, revisionBuf[:1]); err != nil {
+			return
+		}
+		return nil, &WrongVersionError{major, minor, revisionBuf[0]}
 	}
 
 	typ := uint8(scratch[0])

@@ -67,23 +67,24 @@ func isSoftExceptionCode(code int) bool {
 	return false
 }
 
-type connectionStart struct {
-	VersionMajor     byte
-	VersionMinor     byte
-	ServerProperties Table
-	Mechanisms       string
-	Locales          string
+type ConnectionStart struct {
+	VersionMajor     byte   `json:"ver_major"`
+	VersionMinor     byte   `json:"ver_minor"`
+	Revision         byte   `json:"revision"`
+	ServerProperties Table  `json:"properties,omitempty"`
+	Mechanisms       string `json:"mechanisms,omitempty"`
+	Locales          string `json:"locales,omitempty"`
 }
 
-func (msg *connectionStart) id() (uint16, uint16) {
+func (msg *ConnectionStart) id() (uint16, uint16) {
 	return 10, 10
 }
 
-func (msg *connectionStart) wait() bool {
+func (msg *ConnectionStart) wait() bool {
 	return true
 }
 
-func (msg *connectionStart) write(w io.Writer) (err error) {
+func (msg *ConnectionStart) write(w io.Writer) (err error) {
 
 	if err = binary.Write(w, binary.BigEndian, msg.VersionMajor); err != nil {
 		return
@@ -106,7 +107,7 @@ func (msg *connectionStart) write(w io.Writer) (err error) {
 	return
 }
 
-func (msg *connectionStart) read(r io.Reader) (err error) {
+func (msg *ConnectionStart) read(r io.Reader) (err error) {
 
 	if err = binary.Read(r, binary.BigEndian, &msg.VersionMajor); err != nil {
 		return
@@ -246,21 +247,21 @@ func (msg *connectionSecureOk) read(r io.Reader) (err error) {
 	return
 }
 
-type connectionTune struct {
-	ChannelMax uint16
-	FrameMax   uint32
-	Heartbeat  uint16
+type ConnectionTune struct {
+	ChannelMax uint16 `json:"chan_max"`
+	FrameMax   uint32 `json:"frame_max"`
+	Heartbeat  uint16 `json:"heartbeat"`
 }
 
-func (msg *connectionTune) id() (uint16, uint16) {
+func (msg *ConnectionTune) id() (uint16, uint16) {
 	return 10, 30
 }
 
-func (msg *connectionTune) wait() bool {
+func (msg *ConnectionTune) wait() bool {
 	return true
 }
 
-func (msg *connectionTune) write(w io.Writer) (err error) {
+func (msg *ConnectionTune) write(w io.Writer) (err error) {
 
 	if err = binary.Write(w, binary.BigEndian, msg.ChannelMax); err != nil {
 		return
@@ -277,7 +278,7 @@ func (msg *connectionTune) write(w io.Writer) (err error) {
 	return
 }
 
-func (msg *connectionTune) read(r io.Reader) (err error) {
+func (msg *ConnectionTune) read(r io.Reader) (err error) {
 
 	if err = binary.Read(r, binary.BigEndian, &msg.ChannelMax); err != nil {
 		return
@@ -395,19 +396,19 @@ func (msg *connectionOpen) read(r io.Reader) (err error) {
 	return
 }
 
-type connectionOpenOk struct {
+type ConnectionOpenOK struct {
 	reserved1 string
 }
 
-func (msg *connectionOpenOk) id() (uint16, uint16) {
+func (msg *ConnectionOpenOK) id() (uint16, uint16) {
 	return 10, 41
 }
 
-func (msg *connectionOpenOk) wait() bool {
+func (msg *ConnectionOpenOK) wait() bool {
 	return true
 }
 
-func (msg *connectionOpenOk) write(w io.Writer) (err error) {
+func (msg *ConnectionOpenOK) write(w io.Writer) (err error) {
 
 	if err = writeShortstr(w, msg.reserved1); err != nil {
 		return
@@ -416,7 +417,7 @@ func (msg *connectionOpenOk) write(w io.Writer) (err error) {
 	return
 }
 
-func (msg *connectionOpenOk) read(r io.Reader) (err error) {
+func (msg *ConnectionOpenOK) read(r io.Reader) (err error) {
 
 	if msg.reserved1, err = readShortstr(r); err != nil {
 		return
@@ -2758,7 +2759,7 @@ func (r *reader) parseMethodFrame(channel uint16, size uint32) (f frame, err err
 
 		case 10: // connection start
 			//fmt.Println("NextMethod: class:10 method:10")
-			method := &connectionStart{}
+			method := &ConnectionStart{}
 			if err = method.read(r.r); err != nil {
 				return
 			}
@@ -2790,7 +2791,7 @@ func (r *reader) parseMethodFrame(channel uint16, size uint32) (f frame, err err
 
 		case 30: // connection tune
 			//fmt.Println("NextMethod: class:10 method:30")
-			method := &connectionTune{}
+			method := &ConnectionTune{}
 			if err = method.read(r.r); err != nil {
 				return
 			}
@@ -2814,7 +2815,7 @@ func (r *reader) parseMethodFrame(channel uint16, size uint32) (f frame, err err
 
 		case 41: // connection open-ok
 			//fmt.Println("NextMethod: class:10 method:41")
-			method := &connectionOpenOk{}
+			method := &ConnectionOpenOK{}
 			if err = method.read(r.r); err != nil {
 				return
 			}

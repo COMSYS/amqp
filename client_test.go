@@ -155,7 +155,7 @@ func (t *server) expectAMQP() {
 }
 
 func (t *server) connectionStart() {
-	t.send(0, &connectionStart{
+	t.send(0, &ConnectionStart{
 		VersionMajor: 0,
 		VersionMinor: 9,
 		Mechanisms:   "PLAIN",
@@ -166,7 +166,7 @@ func (t *server) connectionStart() {
 }
 
 func (t *server) connectionTune() {
-	t.send(0, &connectionTune{
+	t.send(0, &ConnectionTune{
 		ChannelMax: 11,
 		FrameMax:   20000,
 		Heartbeat:  10,
@@ -181,7 +181,7 @@ func (t *server) connectionOpen() {
 	t.connectionTune()
 
 	t.recv(0, &connectionOpen{})
-	t.send(0, &connectionOpenOk{})
+	t.send(0, &ConnectionOpenOK{})
 }
 
 func (t *server) connectionClose() {
@@ -284,7 +284,7 @@ func TestOpenFailedSASLUnsupportedMechanisms(t *testing.T) {
 
 	go func() {
 		srv.expectAMQP()
-		srv.send(0, &connectionStart{
+		srv.send(0, &ConnectionStart{
 			VersionMajor: 0,
 			VersionMinor: 9,
 			Mechanisms:   "KERBEROS NTLM",

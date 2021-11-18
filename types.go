@@ -68,6 +68,7 @@ type Error struct {
 	Reason  string // description of the error
 	Server  bool   // true when initiated from the server, false when from this library
 	Recover bool   // true when this error can be recovered by retrying later or with different parameters
+	Inner   error  // original error
 }
 
 func newError(code uint16, text string) *Error {

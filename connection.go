@@ -71,6 +71,12 @@ type Config struct {
 	Dial func(network, addr string) (net.Conn, error)
 }
 
+type ConnectionLog struct {
+	Start  *ConnectionStart
+	Tune   *ConnectionTune
+	OpenOK *ConnectionOpenOK
+}
+
 // Connection manages the serialization and deserialization of frames from IO
 // and dispatches the frames to the appropriate channel.  All RPC methods and
 // asynchronous Publishing, Delivery, Ack, Nack and Return messages are
@@ -105,6 +111,8 @@ type Connection struct {
 	Locales    []string // Server locales
 
 	closed int32 // Will be 1 if the connection is closed, 0 otherwise. Should only be accessed as atomic
+
+	Log *ConnectionLog
 }
 
 type readDeadliner interface {
@@ -229,6 +237,7 @@ func Open(conn io.ReadWriteCloser, config Config) (*Connection, error) {
 		sends:     make(chan time.Time),
 		errors:    make(chan *Error, 1),
 		deadlines: make(chan readDeadliner, 1),
+		Log:       new(ConnectionLog),
 	}
 	go c.reader(conn)
 	return c, c.open(config)
@@ -369,6 +378,7 @@ func (c *Connection) send(f frame) error {
 		go c.shutdown(&Error{
 			Code:   FrameError,
 			Reason: err.Error(),
+			Inner:  err,
 		})
 	} else {
 		// Broadcast we sent a frame, reducing heartbeats, only
@@ -521,7 +531,13 @@ func (c *Connection) reader(r io.Reader) {
 		frame, err := frames.ReadFrame()
 
 		if err != nil {
-			c.shutdown(&Error{Code: FrameError, Reason: err.Error()})
+			c.shutdown(&Error{Code: FrameError, Reason: err.Error(), Inner: err})
+			if versionErr, ok := err.(*WrongVersionError); ok {
+				c.Log.Start = new(ConnectionStart)
+				c.Log.Start.VersionMajor = versionErr.Major
+				c.Log.Start.VersionMinor = versionErr.Minor
+				c.Log.Start.Revision = versionErr.Revision
+			}
 			return
 		}
 
@@ -709,8 +725,8 @@ func (c *Connection) open(config Config) error {
 }
 
 func (c *Connection) openStart(config Config) error {
-	start := &connectionStart{}
-
+	start := &ConnectionStart{}
+	c.Log.Start = start
 	if err := c.call(nil, start); err != nil {
 		return err
 	}
@@ -755,8 +771,8 @@ func (c *Connection) openTune(config Config, auth Authentication) error {
 		Response:         auth.Response(),
 		Locale:           config.Locale,
 	}
-	tune := &connectionTune{}
-
+	tune := &ConnectionTune{}
+	c.Log.Tune = tune
 	if err := c.call(ok, tune); err != nil {
 		// per spec, a connection can only be closed when it has been opened
 		// so at this point, we know it's an auth error, but the socket
@@ -802,8 +818,8 @@ func (c *Connection) openTune(config Config, auth Authentication) error {
 
 func (c *Connection) openVhost(config Config) error {
 	req := &connectionOpen{VirtualHost: config.Vhost}
-	res := &connectionOpenOk{}
-
+	res := &ConnectionOpenOK{}
+	c.Log.OpenOK = res
 	if err := c.call(req, res); err != nil {
 		// Cannot be closed yet, but we know it's a vhost problem
 		return ErrVhost
